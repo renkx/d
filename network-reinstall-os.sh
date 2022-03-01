@@ -20,7 +20,7 @@ echo "##############################################################"
 echo "#                                                            #"
 echo "#  Network reinstall OS                                      #"
 echo "#                                                            #"
-echo "#  Last Modified: 2021-10-27                                 #"
+echo "#  Last Modified: 2022-02-18                                 #"
 echo "#  Linux默认密码：IdcOffer.com                               #"
 echo "#  Supported by idcoffer.com                                 #"
 echo "#                                                            #"
@@ -42,9 +42,12 @@ echo "  7) CentOS 8 (EFI 引导) 用户名：root 密码：IdcOffer.com, 要求2
 echo "  8) Ubuntu 16.04 LTS (Xenial Xerus) 用户名：root 密码：IdcOffer.com"
 echo "  9) Ubuntu 18.04 LTS (Bionic Beaver) 用户名：root 密码：IdcOffer.com"
 echo "  10) Ubuntu 20.04 LTS (Focal Fossa) 用户名：root 密码：IdcOffer.com ,推荐2G内存以上使用"
-echo "  11) Fedora 32 用户名：root 密码：IdcOffer.com"
-echo "  12) Fedora 33 用户名：root 密码：IdcOffer.com"
-echo "  13) Fedora 34 用户名：root 密码：IdcOffer.com"
+echo "  11) Fedora 32 用户名：root 密码：IdcOffer.com, 要求2G RAM以上才能使用"
+echo "  12) Fedora 33 用户名：root 密码：IdcOffer.com, 要求2G RAM以上才能使用"
+echo "  13) Fedora 34 用户名：root 密码：IdcOffer.com, 要求2G RAM以上才能使用"
+echo "  14) Fedora 35 用户名：root 密码：IdcOffer.com, 要求2G RAM以上才能使用"
+echo "  15) RockyLinux 8 用户名：root 密码：IdcOffer.com, 要求2G RAM以上才能使用"
+echo "  16) AlmaLinux 8 用户名：root 密码：IdcOffer.com, 要求2G RAM以上才能使用"
 echo "  自定义安装请使用：bash network-reinstall.sh -dd '您的直连'"
 echo ""
 echo -n "请输入编号: "
@@ -57,12 +60,15 @@ case $N in
   4) echo "Password: Pwd@CentOS" ; read -s -n1 -p "Press any key to continue..." ; bash network-reinstall.sh -dd 'https://down.vpsaff.net/linux/dd/images/centos-7-image' ;;
   5) echo "Password: cxthhhhh.com" ; read -s -n1 -p "Press any key to continue..." ; bash network-reinstall.sh -dd "https://down.vpsaff.net/linux/dd/images/CentOS_8.X_NetInstallation_Stable_v3.6.vhd.gz" ;;
   6) bash network-reinstall.sh -c 7 -p IdcOffer.com ;;
-  7) bash network-reinstall.sh -c 8 -p IdcOffer.com ;;
+  7) bash network-reinstall.sh -c 8.5.2111 -p IdcOffer.com --mirror https://mirrors.aliyun.com/centos-vault ;;
   8) bash network-reinstall.sh -u 16.04 -p IdcOffer.com ;;
   9) bash network-reinstall.sh -u 18.04 -p IdcOffer.com ;;
   10) bash network-reinstall.sh -u 20.04 -p IdcOffer.com ;;
   11) bash network-reinstall.sh -f 32 -p IdcOffer.com ;;
   12) bash network-reinstall.sh -f 33 -p IdcOffer.com ;;
   13) bash network-reinstall.sh -f 34 -p IdcOffer.com ;;
+  14) bash network-reinstall.sh -f 35 -p IdcOffer.com ;;
+  15) bash network-reinstall.sh -r 8 -p IdcOffer.com ;;
+  16) bash network-reinstall.sh -a 8 -p IdcOffer.com ;;
   *) echo "Wrong input!" ;;
 esac

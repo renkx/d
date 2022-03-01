@@ -46,6 +46,18 @@ while [[ $# -ge 1 ]]; do
       tmpDIST="$1"
       shift
       ;;
+    -r|--rocky|--rockylinux)
+      shift
+      Relese='RockyLinux'
+      tmpDIST="$1"
+      shift
+	  ;;
+    -a|--alma|--almalinux)
+      shift
+      Relese='AlmaLinux'
+      tmpDIST="$1"
+      shift
+      ;;
     -dd|--image)
       shift
       ddMode='1'
@@ -65,7 +77,7 @@ while [[ $# -ge 1 ]]; do
       ;;
     *)
       if [[ "$1" != 'error' ]]; then echo -ne "\nInvaild option: '$1'\n\n"; fi
-      echo -ne " Usage:\n\tbash $(basename $0)\t-d/--debian [dists-name]\n\t\t\t\t-u/--ubuntu [dists-name]\n\t\t\t\t-c/--centos [dists-verison]\n\t\t\t\t-f/--fedora [dists-verison]\n\t\t\t\t-dd/--image\n\t\t\t\t--mirror\n"
+      echo -ne " Usage:\n\tbash $(basename $0)\t-d/--debian [dists-name]\n\t\t\t\t-u/--ubuntu [dists-name]\n\t\t\t\t-c/--centos [dists-verison]\n\t\t\t\t-r/--rocky [dists-verison]\n\t\t\t\t-r/--alma [dists-verison]\n\t\t\t\t-f/--fedora [dists-verison]\n\t\t\t\t-dd/--image\n\t\t\t\t--mirror\n"
       exit 1;
       ;;
     esac
@@ -74,7 +86,7 @@ while [[ $# -ge 1 ]]; do
 [[ "$EUID" -ne '0' ]] && echo "Error:This script must be run as root!" && exit 1;
 
 total_memory=$(awk '($1 == "MemTotal:"){print $2}' /proc/meminfo)
-if [[ "$Relese" == 'CentOS' ]]; then
+if [[ "$Relese" == 'CentOS' || "$Relese" == 'Fedora' || "$Relese" == 'RockyLinux'  || "$Relese" == "AlmaLinux" ]]; then
 	#minimum 2G memory.
 	if [ $total_memory -lt 1800000 ]; then
 		echo -e "\n\033[31mError: \033[0mnetwork reinstall minimum 2G memory.";
@@ -99,8 +111,12 @@ Ubuntu=$(cat /proc/version | grep Ubuntu)
 Debian=$(cat /proc/version | grep Debian)
 CentOS='';
 Fedora='';
+RockyLinux='';
+AlmaLinux='';
 [[ -f /etc/redhat-release ]] && CentOS=$(cat /etc/redhat-release | grep CentOS)
 [[ -f /etc/redhat-release ]] && Fedora=$(cat /etc/redhat-release | grep Fedora)
+[[ -f /etc/redhat-release ]] && RockyLinux=$(cat /etc/redhat-release | grep Rocky)
+[[ -f /etc/redhat-release ]] && AlmaLinux=$(cat /etc/redhat-release | grep Alma)
 if [[ "$Ubuntu" != "" ]]; then
 	CurrentRelese="Ubuntu";
 elif [[ "$Debian" != "" ]]; then
@@ -109,8 +125,12 @@ elif [[ "$CentOS" != "" ]]; then
 	CurrentRelese="CentOS";
 elif [[ "$Fedora" != "" ]]; then
 	CurrentRelese="Fedora";
+elif [[ "$RockyLinux" != "" ]]; then
+	CurrentRelese="RockyLinux";
+elif [[ "$AlmaLinux" != "" ]]; then
+	CurrentRelese="AlmaLinux";
 else
-	echo -e "Only supported \033[36mCentOS\033[0m, \033[36mFedora\033[0m, \033[36mUbuntu\033[0m and \033[36mDebian\033[0m.";
+	echo -e "Only supported \033[36mCentOS\033[0m, \033[36mFedora\033[0m, \033[36mRockyLinux\033[0m, \033[36mAlmaLinux\033[0m, \033[36mUbuntu\033[0m and \033[36mDebian\033[0m.";
 	exit 1;
 fi
 PLATFORM=$(uname -i);
@@ -120,7 +140,7 @@ clear
 
 echo -e "\n\033[36m# Try requesting Google search\033[0m\n"
 IsGlobal="0"
-delay="$(ping -c 3 www.google.com | grep "min/avg/max" | awk -F '=' '{print $2}' | awk -F '/' '{print $2}' | awk '{gsub(/^\s+|\s+$/, "");print}' | sed -n '/^[0-9]\+\(\.[0-9]\+\)\?$/p')";
+delay="$(ping -c 2 -w 2 www.google.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }' | sed -n '/^[0-9]\+\(\.[0-9]\+\)\?$/p')";
 if [ "$delay" != "" ] ; then
 	IsGlobal="1"
 	echo "Succeeded"
@@ -139,28 +159,28 @@ function SelectMirror(){
 	[ -n "$PLATFORM" ] || exit 1
 	relese=$(echo $Relese |sed -r 's/(.*)/\L\1/')
 	if [ "$Relese" == "Debian" ] || [ "$Relese" == "Ubuntu" ]; then
-		inUpdate=''; [ "$Relese" == "Ubuntu" ] && inUpdate='-updates'	
-		imagesPart='images'; 
+		inUpdate=''; [ "$Relese" == "Ubuntu" ] && inUpdate='-updates'
+		imagesPart='images';
 		if [ "$DIST" == "focal" ] || [ "$DIST" == "hirsute" ]; then
 			imagesPart='legacy-images'
 		fi
 		MirrorTEMP="SUB_MIRROR/dists/${DIST}${inUpdate}/main/installer-${PLATFORM}/current/${imagesPart}/netboot/${relese}-installer/${PLATFORM}/initrd.gz"
-	elif [ "$Relese" == "CentOS" ]; then
-		if [[ "$DIST" =~ ^8.* ]]; then
+	elif [[ "$Relese" == "CentOS" || "$Relese" == "RockyLinux"  || "$Relese" == "AlmaLinux" ]]; then
+		if [[ "$DIST" =~ ^8.* ]] || [[ "$Relese" == "RockyLinux"  || "$Relese" == "AlmaLinux" ]]; then
 			MirrorTEMP="SUB_MIRROR/${DIST}/BaseOS/${PLATFORM}/os/isolinux/initrd.img"
 		else
 			MirrorTEMP="SUB_MIRROR/${DIST}/os/${PLATFORM}/isolinux/initrd.img"
-		fi    
+		fi
 	elif [ "$Relese" == "Fedora" ]; then
-		MirrorTEMP="SUB_MIRROR/releases/${DIST}/Server/${PLATFORM}/os/isolinux/initrd.img"   
+		MirrorTEMP="SUB_MIRROR/releases/${DIST}/Server/${PLATFORM}/os/isolinux/initrd.img"
 	fi
 	[ -n "$MirrorTEMP" ] || exit 1
 	MirrorStatus=0
 	declare -A MirrorBackup
-	if [[ IsGlobal == "1" ]];then
-		MirrorBackup=(["Debian0"]="" ["Debian1"]="http://deb.debian.org/debian" ["Debian2"]="http://archive.debian.org/debian" ["Ubuntu0"]="" ["Ubuntu1"]="http://archive.ubuntu.com/ubuntu" ["Ubuntu2"]="http://ports.ubuntu.com" ["CentOS0"]="" ["CentOS1"]="http://mirror.centos.org/centos" ["CentOS2"]="http://vault.centos.org" ["Fedora0"]="" ["Fedora1"]="https://mirrors.aliyun.com/fedora")
+	if [[ "$IsGlobal" == "1" ]];then
+		MirrorBackup=(["Debian0"]="" ["Debian1"]="http://deb.debian.org/debian" ["Debian2"]="http://archive.debian.org/debian" ["Ubuntu0"]="" ["Ubuntu1"]="http://archive.ubuntu.com/ubuntu" ["Ubuntu2"]="http://ports.ubuntu.com" ["CentOS0"]="" ["CentOS1"]="http://mirror.centos.org/centos" ["CentOS2"]="http://vault.centos.org" ["Fedora0"]="" ["Fedora1"]="https://mirrors.aliyun.com/fedora" ["RockyLinux0"]="" ["RockyLinux1"]="https://download.rockylinux.org/pub/rocky" ["AlmaLinux0"]="" ["AlmaLinux1"]="https://repo.almalinux.org/almalinux")
 	else
-		MirrorBackup=(["Debian0"]="" ["Debian1"]="https://mirrors.aliyun.com/debian" ["Debian2"]="http://mirrors.163.com/debian-archive" ["Ubuntu0"]="" ["Ubuntu1"]="http://mirrors.aliyun.com/ubuntu" ["CentOS0"]="" ["CentOS1"]="http://mirrors.aliyun.com/centos" ["CentOS2"]="http://mirrors.aliyun.com/centos-vault" ["Fedora0"]="" ["Fedora1"]="https://mirrors.aliyun.com/fedora")
+		MirrorBackup=(["Debian0"]="" ["Debian1"]="https://mirrors.aliyun.com/debian" ["Debian2"]="http://mirrors.163.com/debian-archive" ["Ubuntu0"]="" ["Ubuntu1"]="http://mirrors.aliyun.com/ubuntu" ["CentOS0"]="" ["CentOS1"]="http://mirrors.aliyun.com/centos" ["CentOS2"]="http://mirrors.aliyun.com/centos-vault" ["Fedora0"]="" ["Fedora1"]="https://mirrors.aliyun.com/fedora" ["RockyLinux0"]="" ["RockyLinux1"]="https://mirrors.aliyun.com/rockylinux" ["AlmaLinux0"]="" ["AlmaLinux1"]="https://mirrors.aliyun.com/almalinux")
 	fi
 	echo "$New" |grep -q '^http://\|^https://\|^ftp://' && MirrorBackup[${Relese}0]="$New"
 	for mirror in $(echo "${!MirrorBackup[@]}" |sed 's/\ /\n/g' |sort -n |grep "^$Relese")
@@ -233,6 +253,8 @@ if [[ -z "$tmpDIST" ]]; then
   [ "$Relese" == 'Ubuntu' ] && tmpDIST='focal' && DIST='focal';
   [ "$Relese" == 'CentOS' ] && tmpDIST='8' && DIST='8';
   [ "$Relese" == 'Fedora' ] && tmpDIST='34' && DIST='34';
+  [ "$Relese" == 'RockyLinux' ] && tmpDIST='8' && DIST='8';
+  [ "$Relese" == 'AlmaLinux' ] && tmpDIST='8' && DIST='8';
 fi
 
 [ -n "$Relese" ] || Relese='Debian'
@@ -244,7 +266,7 @@ if [[ "$Relese" == 'Debian' ]] || [[ "$Relese" == 'Ubuntu' ]]; then
 		CheckDependence iconv;
 	fi
 	CheckDependence wget,awk,grep,sed,cut,cat,cpio,gzip,find,dirname,basename,openssl;
-elif [[ "$Relese" == 'CentOS' ]] || [[ "$Relese" == 'Fedora' ]]; then
+elif [[ "$Relese" == 'CentOS' || "$Relese" == 'Fedora' || "$Relese" == 'RockyLinux' ]]; then
 	CheckDependence wget,awk,grep,sed,cut,cat,cpio,gzip,find,dirname,basename,file,xz,openssl;
 fi
 
@@ -291,7 +313,7 @@ if [[ -z "$DIST" ]]; then
       exit 1;
     }
   fi
-  if [[ "$Relese" == 'Fedora' ]]; then
+  if [[ "$Relese" == 'Fedora' || "$Relese" == 'RockyLinux'  ||  "$Relese" == 'AlmaLinux' ]] ; then
     SpikCheckDIST='1'
     DIST="$(echo "$tmpDIST" |sed -r 's/(.*)/\L\1/')";
     LinuxMirror=$(SelectMirror "$Relese" "$DIST" "$PLATFORM" "$tmpMirror")
@@ -315,13 +337,10 @@ fi
 
 GRUBDIR=""
 GRUBFILE=""
-GRUBVER=""
-[[ -f '/boot/grub/grub.cfg' ]] && GRUBVER='0' && GRUBDIR='/boot/grub' && GRUBFILE='grub.cfg';
-[[ -z "$GRUBDIR" ]] && [[ -f '/boot/grub2/grub.cfg' ]] && GRUBVER='0' && GRUBDIR='/boot/grub2' && GRUBFILE='grub.cfg';
-[[ -z "$GRUBDIR" ]] && [[ -f '/boot/grub/grub.conf' ]] && GRUBVER='1' && GRUBDIR='/boot/grub' && GRUBFILE='grub.conf';
+[[ -f '/boot/grub/grub.cfg' ]] && GRUBDIR='/boot/grub' && GRUBFILE='grub.cfg';
+[[ -z "$GRUBDIR" ]] && [[ -f '/boot/grub2/grub.cfg' ]] && GRUBDIR='/boot/grub2' && GRUBFILE='grub.cfg';
+[[ -z "$GRUBDIR" ]] && [[ -f '/boot/grub/grub.conf' ]] && GRUBDIR='/boot/grub' && GRUBFILE='grub.conf';
 [ -z "$GRUBDIR" -o -z "$GRUBFILE" ] && echo -ne "Error! \nNot Found grub.\n" && exit 1;
-
-[[ "$GRUBVER" == "1" ]] && [[ "$(awk '/^export linux_gfx_mode/' $GRUBDIR/$GRUBFILE)" != "" ]] && GRUBVER="0";
 
 #Network config
 DEFAULTNET=$(ip route show |grep -o 'default via [0-9]\{1,3\}.[0-9]\{1,3\}.[0-9]\{1,3\}.[0-9]\{1,3\}.*' |head -n1 |sed 's/proto.*\|onlink.*//g' |awk '{print $NF}');
@@ -344,7 +363,7 @@ else
 	if [[ IsGlobal == "1" ]];then
 		NAMESERVER="1.1.1.1 8.8.8.8" #Cloudflare Google DNS
 	else
-		delay=$(ping -c 3 mirrors.tencentyun.com | grep "min/avg/max" | awk -F '=' '{print $2}' | awk -F '/' '{print $2}' | awk '{gsub(/^\s+|\s+$/, "");print}')
+		delay=$(ping -c 3 -w 2 mirrors.tencentyun.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }' | sed -n '/^[0-9]\+\(\.[0-9]\+\)\?$/p')
 		if [[ "$delay" != "" ]] && [[ $delay < 2.0 ]];then
 			NAMESERVER="119.29.29.29" #Tencent cloud DNS
 		fi
@@ -354,7 +373,7 @@ fi
 #Disable IPv6
 NOIPV6=""
 ping6 -c 1 ipv6.baidu.com >>/dev/null 2>&1
-if [[ $? != 0 ]];then    
+if [[ $? != 0 ]];then
 	ping6 -c 1 ipv6.google.com >>/dev/null 2>&1
 	if [[ $? != 0 ]];then
 		NOIPV6="ipv6.disable=1"
@@ -417,7 +436,7 @@ echo -e "\n[\033[33m$Relese\033[0m] [\033[33m$DIST\033[0m] [\033[33m$PLATFORM\03
 mkdir /boot/netboot && cd /boot/netboot
 if [[ "$linux_relese" == 'debian' ]] || [[ "$linux_relese" == 'ubuntu' ]]; then
 	inUpdate=''; [ "$linux_relese" == 'ubuntu' ] && inUpdate='-updates'
-	imagesPart='images'; 
+	imagesPart='images';
 	if [[ "$DIST" == "focal" ]] || [[ "$DIST" == "hirsute" ]] ; then
 		imagesPart='legacy-images'
 	fi
@@ -427,8 +446,8 @@ if [[ "$linux_relese" == 'debian' ]] || [[ "$linux_relese" == 'ubuntu' ]]; then
 	[[ $? -ne '0' ]] && echo -ne "\033[31mError! \033[0mDownload 'vmlinuz' for \033[33m$linux_relese\033[0m failed! \n" && exit 1
 	MirrorHost="$(echo "$LinuxMirror" |awk -F'://|/' '{print $2}')";
 	MirrorFolder="$(echo "$LinuxMirror" |awk -F''${MirrorHost}'' '{print $2}')";
-elif [[ "$linux_relese" == 'centos' ]]; then
-	if [[ "$DIST" =~ ^8.* ]]; then
+elif [[ "$linux_relese" == 'centos' || "$linux_relese" == 'rockylinux' || "$linux_relese" == 'almalinux' ]]; then
+	if [[ "$DIST" =~ ^8.* ]] || [[ "$linux_relese" == 'rockylinux' || "$linux_relese" == 'almalinux' ]]; then
 		wget --no-check-certificate -qO 'initrd.img' "${LinuxMirror}/${DIST}/BaseOS/${PLATFORM}/os/isolinux/initrd.img"
 		[[ $? -ne '0' ]] && echo -ne "\033[31mError! \033[0mDownload 'initrd.img' for \033[33m$linux_relese\033[0m failed! \n" && exit 1
 		wget --no-check-certificate -qO 'vmlinuz' "${LinuxMirror}/${DIST}/BaseOS/${PLATFORM}/os/isolinux/vmlinuz"
@@ -454,9 +473,9 @@ mkdir -p /tmp/boot;
 mv -f /boot/netboot/initrd.img /tmp/initrd.img;
 cd /tmp/boot;
 
-if [[ "$linux_relese" == 'debian' ]] || [[ "$linux_relese" == 'ubuntu' ]]; then
+if [[ "$linux_relese" == 'debian' || "$linux_relese" == 'ubuntu' ]]; then
   COMPTYPE="gzip";
-elif [[ "$linux_relese" == 'centos' ]] || [[ "$linux_relese" == 'fedora' ]]; then
+elif [[ "$linux_relese" == 'centos' || "$linux_relese" == 'fedora' || "$linux_relese" == 'rockylinux' || "$linux_relese" == 'almalinux' ]]; then
   COMPTYPE="$(file ../initrd.img |grep -o ':.*compressed data' |cut -d' ' -f2 |sed -r 's/(.*)/\L\1/' |head -n1)"
   [[ -z "$COMPTYPE" ]] && echo "Detect compressed type fail." && exit 1;
 fi
@@ -482,10 +501,10 @@ for COMP in `echo -en 'gzip\nlzma\nxz'`
 
 $UNCOMP < /tmp/$NewIMG | cpio --extract --verbose --make-directories --no-absolute-filenames >>/dev/null 2>&1
 
-if [[ "$linux_relese" == 'centos' ]] || [[ "$linux_relese" == 'fedora' ]]; then
+if [[ "$linux_relese" == 'centos'  || "$linux_relese" == 'fedora' || "$linux_relese" == 'rockylinux' || "$linux_relese" == 'almalinux' ]]; then
 	InstallURL=''
-	if [[ "$linux_relese" == 'centos' ]]; then
-		if [[ "$DIST" =~ ^8.* ]]; then
+	if [[ "$linux_relese" == 'centos' || "$linux_relese" == 'rockylinux' || "$linux_relese" == 'almalinux' ]]; then
+		if [[ "$DIST" =~ ^8.* ]] || [[ "$linux_relese" == 'rockylinux' || "$linux_relese" == 'almalinux' ]]; then
 			InstallURL="${LinuxMirror}/${DIST}/BaseOS/${PLATFORM}/os/"
 		else
 			InstallURL="${LinuxMirror}/${DIST}/os/${PLATFORM}/"
@@ -520,7 +539,7 @@ timezone --isUtc Asia/Shanghai
 network --bootproto=static --ip=$MAINIP --netmask=$NETMASK --gateway=$GATEWAYIP --nameserver=$NAMESERVER --hostname=$(hostname) --onboot=on
 bootloader --location=mbr --append="rhgb quiet crashkernel=auto"
 zerombr
-clearpart --all --initlabel 
+clearpart --all --initlabel
 autopart
 
 %packages --ignoremissing
@@ -529,6 +548,7 @@ bind-utils
 net-tools
 wget
 vim
+openssl
 %end
 
 %post --interpreter=/bin/bash
@@ -545,9 +565,12 @@ EOF
 	if [[ "$linux_relese" == 'centos' ]]; then
 		[[ "$DIST" =~ ^7.* ]] && sed -i "/^authselect.*/c\auth --useshadow --passalgo=sha512" /tmp/boot/ks.cfg;
 	fi
+	if [[ "$linux_relese" == 'rockylinux' ]]; then
+		sed -i "/^@base.*/c\@\^minimal-environment" /tmp/boot/ks.cfg;
+	fi
 else
-	
-	
+
+
 	cat >/tmp/boot/preseed.cfg<<EOF
 #Low memory mode
 #d-i lowmem/low boolean true
@@ -640,20 +663,20 @@ sed -ri 's/^#?PasswordAuthentication.*/PasswordAuthentication yes/g' /target/etc
 apt-install wget curl net-tools;
 EOF
 
-	if [[ "$PROTO" == 'dhcp' ]]; then 
+	if [[ "$PROTO" == 'dhcp' ]]; then
 		sed -i '/netcfg\/disable_autoconfig/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/dhcp_failed/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/dhcp_options/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/get_.*/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/confirm_static/d' /tmp/boot/preseed.cfg
 	fi
-	
+
 	[[ "$linux_relese" == 'debian' ]] && {
 		sed -i '/user-setup\/allow-password-weak/d' /tmp/boot/preseed.cfg
 		sed -i '/user-setup\/encrypt-home/d' /tmp/boot/preseed.cfg
 		sed -i '/pkgsel\/update-policy/d' /tmp/boot/preseed.cfg
 		sed -i 's/umount\ \/media.*true\;\ //g' /tmp/boot/preseed.cfg
-		
+
 		if [[ "$DIST" == "bullseye" ]]; then
 			if [ $total_memory -lt 800000 ]; then
 				#Low memory mode
@@ -666,36 +689,30 @@ EOF
 			fi
 		fi
 	}
-		
+
 	[[ "$ddMode" == '0' ]] && {
 		sed -i '/anna-install/d' /tmp/boot/preseed.cfg
 		sed -i 's/wget.*\/sbin\/reboot\;\ //g' /tmp/boot/preseed.cfg
 	}
-	
+
 fi
 
 find . | cpio -H newc --create --verbose | gzip -9 > /tmp/initrd.img;
 mv -f /tmp/initrd.img /boot/netboot/initrd.img;
 rm -rf /tmp/boot;
 
+mv -f /boot/netboot/vmlinuz /boot/vmlinuz
+mv -f /boot/netboot/initrd.img /boot/initrd.img
+
 cd ~
-if [[ "$CurrentRelese" == "Ubuntu" ]]; then
-	update-grub >>/dev/null 2>&1
-elif [[ "$CurrentRelese" == "Debian" ]]; then
-	grub-set-default 0 >>/dev/null 2>&1
-	grub-mkconfig -o $GRUBDIR/$GRUBFILE >>/dev/null 2>&1
-else
-	grub2-set-default 0 >>/dev/null 2>&1
-	grub2-mkconfig -o $GRUBDIR/$GRUBFILE >>/dev/null 2>&1
-fi
 
 #Backup grub config file
 cp $GRUBDIR/$GRUBFILE "$GRUBDIR/$GRUBFILE.bak_$(date "+%Y%m%d%k%M%S")"
 
-[[ -f /tmp/grub.new ]] && rm -f /tmp/grub.new
-if [[ "$GRUBVER" == '0' ]]; then
-	READGRUB='/tmp/grub.read'
-	cat $GRUBDIR/$GRUBFILE |sed -n '1h;1!H;$g;s/\n/%%%%%%%/g;$p' |grep -om 1 'menuentry\ [^{]*{[^}]*}%%%%%%%' |sed 's/%%%%%%%/\n/g' >$READGRUB
+READGRUB='/tmp/grub.read'
+cat $GRUBDIR/$GRUBFILE |sed -n '1h;1!H;$g;s/\n/%%%%%%%/g;$p' |grep -om 1 'menuentry\ [^{]*{[^}]*}%%%%%%%' |sed 's/%%%%%%%/\n/g' >$READGRUB
+
+if [[ "$(cat /tmp/grub.new)" != "" ]]; then
 	LoadNum="$(cat $READGRUB |grep -c 'menuentry ')"
 	if [[ "$LoadNum" -eq '1' ]]; then
 	cat $READGRUB |sed '/^$/d' >/tmp/grub.new;
@@ -718,70 +735,89 @@ if [[ "$GRUBVER" == '0' ]]; then
 	  exit 1;
 	}
 	fi
-	[ ! -f /tmp/grub.new ] && echo "Error! $GRUBFILE. " && exit 1;
-	
+	[ ! -f /tmp/grub.new ] && echo -e "\033[31mError! \033[0m $GRUBFILE. " && exit 1;
+
 	sed -i "/menuentry.*/c\menuentry\ \'Install $Relese $DIST\'\ --class $linux_relese\ --class\ gnu-linux\ --class\ gnu\ --class\ os\ \{" /tmp/grub.new
 	sed -i "/echo.*Loading/d" /tmp/grub.new;
-	INSERTGRUB="$(awk '/menuentry /{print NR}' $GRUBDIR/$GRUBFILE|head -n 1)"
+
+
+	sed -i "/menuentry.*/c\menuentry\ \'Install $Relese $DIST\'\ --class $linux_relese\ --class\ gnu-linux\ --class\ gnu\ --class\ os\ \{" /tmp/grub.new;
+
+	LinuxKernel="$(grep 'linux.*/\|kernel.*/' /tmp/grub.new |awk '{print $1}' |head -n 1)";
+	[[ -z "$LinuxKernel" ]] && echo "Error! read grub config! " && exit 1;
+	LinuxIMG="$(grep 'initrd.*/' /tmp/grub.new |awk '{print $1}' |tail -n 1)";
+	[ -z "$LinuxIMG" ] && sed -i "/$LinuxKernel.*\//a\\\tinitrd\ \/" /tmp/grub.new && LinuxIMG='initrd';
+
+	if [[ "$linux_relese" == 'debian' ]] || [[ "$linux_relese" == 'ubuntu' ]]; then
+		BOOT_OPTION="auto=true $NOIPV6 hostname=$linux_relese domain= -- quiet"
+	elif [[ "$linux_relese" == 'centos' ||  "$linux_relese" == 'fedora'  || "$linux_relese" == 'rockylinux' || "$linux_relese" == 'almalinux' ]]; then
+		BOOT_OPTION="inst.ks=file://ks.cfg $NOIPV6 quiet";
+	fi
+
+	[[ -n "$(grep 'linux.*/\|kernel.*/' /tmp/grub.new |awk '{print $2}' |tail -n 1 |grep '^/boot/')" ]] && Type='InBoot' || Type='NoBoot';
+
+	[[ "$Type" == 'InBoot' ]] && {
+		sed -i "/$LinuxKernel.*\//c\\\t$LinuxKernel\\t\/boot\/vmlinuz $BOOT_OPTION" /tmp/grub.new;
+		sed -i "/$LinuxIMG.*\//c\\\t$LinuxIMG\\t\/boot\/initrd.img" /tmp/grub.new;
+	}
+
+	[[ "$Type" == 'NoBoot' ]] && {
+		sed -i "/$LinuxKernel.*\//c\\\t$LinuxKernel\\t\/vmlinuz $BOOT_OPTION" /tmp/grub.new;
+		sed -i "/$LinuxIMG.*\//c\\\t$LinuxIMG\\t\/initrd.img" /tmp/grub.new;
+	}
+	echo "" >> /etc/grub.d/40_custom
+	cat /tmp/grub.new >> /etc/grub.d/40_custom
 else
-	echo "GRUBVER=1"
+	[[ -n "$(grep 'linux.*/\|kernel.*/' $GRUBDIR/$GRUBFILE |awk '{print $2}' |tail -n 1 |grep '^/boot/')" ]] && BootDIR='/boot' || BootDIR='';
 
-	CFG0="$(awk '/^title[\t]/{print NR}' $GRUBDIR/$GRUBFILE|head -n 1)";
-	CFG1="$(awk '/^title[\t]/{print NR}' $GRUBDIR/$GRUBFILE|head -n 2 |tail -n 1)";
-	[[ -n $CFG0 ]] && [ -z $CFG1 -o $CFG1 == $CFG0 ] && sed -n "$CFG0,$"p $GRUBDIR/$GRUBFILE >/tmp/grub.new;
-	[[ -n $CFG0 ]] && [ -z $CFG1 -o $CFG1 != $CFG0 ] && sed -n "$CFG0,$[$CFG1-1]"p $GRUBDIR/$GRUBFILE >/tmp/grub.new;
-	[[ ! -f /tmp/grub.new ]] && echo "Error! configure append $GRUBFILE. " && exit 1;
-	sed -i "/title.*/c\title\ \'Install $Relese $DIST'" /tmp/grub.new;
-	sed -i '/^#/d' /tmp/grub.new;
-	INSERTGRUB="$(awk '/^title[\t]/{print NR}' $GRUBDIR/$GRUBFILE|head -n 1)"
+	if [[ "$linux_relese" == 'ubuntu'  || "$linux_relese" == 'debian' ]]; then
+		cat >> /etc/grub.d/40_custom <<EOF
+menuentry 'Install $Relese $DIST' --class $linux_relese --class gnu-linux --class gnu --class os {
+  load_video
+  insmod gzio
+  insmod part_msdos
+  insmod ext2
+  insmod xfs
+  $(cat $GRUBDIR/$GRUBFILE | grep -m 1 -A 4 "if \[ x\$feature_platform_search_hint")
+  linux16 $BootDIR/vmlinuz auto=true $NOIPV6 hostname=$(hostname) domain= -- quiet
+  initrd16 $BootDIR/initrd.img
+}
+EOF
+	else
+		cat >> /etc/grub.d/40_custom <<EOF
+menuentry 'Install $Relese $DIST' --class $linux_relese --class gnu-linux --class gnu --class os {
+  load_video
+  insmod gzio
+  insmod part_msdos
+  insmod ext2
+  insmod xfs
+  set root='hd0,msdos1'
+  $(cat $GRUBDIR/$GRUBFILE | grep -m 1 -A 4 "if \[ x\$feature_platform_search_hint")
+  linux16 $BootDIR/vmlinuz inst.ks=file://ks.cfg $NOIPV6 quiet
+  initrd16 $BootDIR/initrd.img
+}
+EOF
+
+	fi
 fi
 
-LinuxKernel="$(grep 'linux.*/\|kernel.*/' /tmp/grub.new |awk '{print $1}' |head -n 1)";
-[[ -z "$LinuxKernel" ]] && echo "Error! read grub config! " && exit 1;
-LinuxIMG="$(grep 'initrd.*/' /tmp/grub.new |awk '{print $1}' |tail -n 1)";
-[ -z "$LinuxIMG" ] && sed -i "/$LinuxKernel.*\//a\\\tinitrd\ \/" /tmp/grub.new && LinuxIMG='initrd';
+# Make sure we only boot into our custom menu entry once
+sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/g' /etc/default/grub
 
-if [[ "$linux_relese" == 'debian' ]] || [[ "$linux_relese" == 'ubuntu' ]]; then
-	BOOT_OPTION="auto=true $NOIPV6 hostname=$linux_relese domain= -- quiet"
-elif [[ "$linux_relese" == 'centos' ]] || [[ "$linux_relese" == 'fedora' ]]; then
-	BOOT_OPTION="inst.ks=file://ks.cfg $NOIPV6 quiet";
-fi
-
-[[ -n "$(grep 'linux.*/\|kernel.*/' /tmp/grub.new |awk '{print $2}' |tail -n 1 |grep '^/boot/')" ]] && Type='InBoot' || Type='NoBoot';
-
-[[ "$Type" == 'InBoot' ]] && {
-	sed -i "/$LinuxKernel.*\//c\\\t$LinuxKernel\\t\/boot\/vmlinuz $BOOT_OPTION" /tmp/grub.new;
-	sed -i "/$LinuxIMG.*\//c\\\t$LinuxIMG\\t\/boot\/initrd.img" /tmp/grub.new;
-	mv -f /boot/netboot/vmlinuz /boot/vmlinuz;
-	mv -f /boot/netboot/initrd.img /boot/initrd.img;
-}
-
-[[ "$Type" == 'NoBoot' ]] && {
-	sed -i "/$LinuxKernel.*\//c\\\t$LinuxKernel\\t\/vmlinuz $BOOT_OPTION" /tmp/grub.new;
-	sed -i "/$LinuxIMG.*\//c\\\t$LinuxIMG\\t\/initrd.img" /tmp/grub.new;
-	mv -f /boot/netboot/vmlinuz /boot/vmlinuz;
-	mv -f /boot/netboot/initrd.img /boot/initrd.img;
-}
-
-rm -rf /boot/netboot;
-
-sed -i '$a\\n' /tmp/grub.new;
-
-echo "Update $GRUBDIR/$GRUBFILE"
-sed -i ''${INSERTGRUB}'i\\n' $GRUBDIR/$GRUBFILE;
-sed -i ''${INSERTGRUB}'r /tmp/grub.new' $GRUBDIR/$GRUBFILE;
-[[ -f  $GRUBDIR/grubenv ]] && sed -i 's/saved_entry/#saved_entry/g' $GRUBDIR/grubenv;
-
-if [[ "$CurrentRelese" == "CentOS" ]]; then
-	grub2-set-default "Install $Relese $DIST"
+if [[ "$CurrentRelese" == "Ubuntu" ]]; then
+	update-grub >>/dev/null 2>&1
+	grub-set-default "Install $Relese $DIST" >>/dev/null 2>&1
+	grub-reboot "Install $Relese $DIST" >>/dev/null 2>&1
+elif [[ "$CurrentRelese" == "Debian" ]]; then
+	grub-mkconfig -o $GRUBDIR/$GRUBFILE >>/dev/null 2>&1
+	grub-set-default "Install $Relese $DIST" >>/dev/null 2>&1
+	grub-reboot "Install $Relese $DIST" >>/dev/null 2>&1
 else
-	grub-set-default "Install $Relese $DIST"
+	grub2-mkconfig -o $GRUBDIR/$GRUBFILE >>/dev/null 2>&1
+	grub2-set-default "Install $Relese $DIST" >>/dev/null 2>&1
+	grub2-reboot "Install $Relese $DIST" >>/dev/null 2>&1
 fi
 
-chown root:root $GRUBDIR/$GRUBFILE
-chmod 444 $GRUBDIR/$GRUBFILE
-
-echo  -e "\033[33mreboot\033[0m"
 reboot
 
 exit 1;
