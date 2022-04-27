@@ -712,7 +712,7 @@ cp $GRUBDIR/$GRUBFILE "$GRUBDIR/$GRUBFILE.bak_$(date "+%Y%m%d%k%M%S")"
 READGRUB='/tmp/grub.read'
 cat $GRUBDIR/$GRUBFILE |sed -n '1h;1!H;$g;s/\n/%%%%%%%/g;$p' |grep -om 1 'menuentry\ [^{]*{[^}]*}%%%%%%%' |sed 's/%%%%%%%/\n/g' >$READGRUB
 
-if [[ "$(cat /tmp/grub.new)" != "" ]]; then
+if [[ "$(cat $READGRUB)" != "" && "$(cat $READGRUB|grep '/vmlinuz')" != "" ]]; then
 	LoadNum="$(cat $READGRUB |grep -c 'menuentry ')"
 	if [[ "$LoadNum" -eq '1' ]]; then
 	cat $READGRUB |sed '/^$/d' >/tmp/grub.new;
@@ -768,7 +768,12 @@ if [[ "$(cat /tmp/grub.new)" != "" ]]; then
 	echo "" >> /etc/grub.d/40_custom
 	cat /tmp/grub.new >> /etc/grub.d/40_custom
 else
-	[[ -n "$(grep 'linux.*/\|kernel.*/' $GRUBDIR/$GRUBFILE |awk '{print $2}' |tail -n 1 |grep '^/boot/')" ]] && BootDIR='/boot' || BootDIR='';
+	if [[ -f /boot/grub2/grubenv ]] && [[ -d /boot/loader/entries ]] && [[ "$(ls /boot/loader/entries|wc -w)" != "" ]]; then
+		LoaderPath=$(cat /boot/grub2/grubenv | grep 'saved_entry=' | awk -F '=' '{print $2}')
+		[[ "$(cat /boot/loader/entries/$LoaderPath.conf | grep '^linux /boot/')" ]] && BootDIR='/boot' || BootDIR='';
+	else
+		[[ -n "$(grep 'linux.*/\|kernel.*/' $GRUBDIR/$GRUBFILE |awk '{print $2}' |tail -n 1 |grep '^/boot/')" ]] && BootDIR='/boot' || BootDIR='';
+	fi
 
 	if [[ "$linux_relese" == 'ubuntu'  || "$linux_relese" == 'debian' ]]; then
 		cat >> /etc/grub.d/40_custom <<EOF
