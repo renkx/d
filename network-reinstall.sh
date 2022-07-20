@@ -159,8 +159,8 @@ function SelectMirror(){
 	[ -n "$PLATFORM" ] || exit 1
 	relese=$(echo $Relese |sed -r 's/(.*)/\L\1/')
 	if [ "$Relese" == "Debian" ] || [ "$Relese" == "Ubuntu" ]; then
-		inUpdate=''; [ "$Relese" == "Ubuntu" ] && inUpdate='-updates'
-		imagesPart='images';
+		inUpdate=''; [ "$Relese" == "Ubuntu" ] && inUpdate='-updates'	
+		imagesPart='images'; 
 		if [ "$DIST" == "focal" ] || [ "$DIST" == "hirsute" ]; then
 			imagesPart='legacy-images'
 		fi
@@ -170,7 +170,7 @@ function SelectMirror(){
 			MirrorTEMP="SUB_MIRROR/${DIST}/BaseOS/${PLATFORM}/os/isolinux/initrd.img"
 		else
 			MirrorTEMP="SUB_MIRROR/${DIST}/os/${PLATFORM}/isolinux/initrd.img"
-		fi
+		fi    
 	elif [ "$Relese" == "Fedora" ]; then
 		MirrorTEMP="SUB_MIRROR/releases/${DIST}/Server/${PLATFORM}/os/isolinux/initrd.img"
 	fi
@@ -373,7 +373,7 @@ fi
 #Disable IPv6
 NOIPV6=""
 ping6 -c 1 ipv6.baidu.com >>/dev/null 2>&1
-if [[ $? != 0 ]];then
+if [[ $? != 0 ]];then    
 	ping6 -c 1 ipv6.google.com >>/dev/null 2>&1
 	if [[ $? != 0 ]];then
 		NOIPV6="ipv6.disable=1"
@@ -436,7 +436,7 @@ echo -e "\n[\033[33m$Relese\033[0m] [\033[33m$DIST\033[0m] [\033[33m$PLATFORM\03
 mkdir /boot/netboot && cd /boot/netboot
 if [[ "$linux_relese" == 'debian' ]] || [[ "$linux_relese" == 'ubuntu' ]]; then
 	inUpdate=''; [ "$linux_relese" == 'ubuntu' ] && inUpdate='-updates'
-	imagesPart='images';
+	imagesPart='images'; 
 	if [[ "$DIST" == "focal" ]] || [[ "$DIST" == "hirsute" ]] ; then
 		imagesPart='legacy-images'
 	fi
@@ -539,7 +539,7 @@ timezone --isUtc Asia/Shanghai
 network --bootproto=static --ip=$MAINIP --netmask=$NETMASK --gateway=$GATEWAYIP --nameserver=$NAMESERVER --hostname=$(hostname) --onboot=on
 bootloader --location=mbr --append="rhgb quiet crashkernel=auto"
 zerombr
-clearpart --all --initlabel
+clearpart --all --initlabel 
 autopart
 
 %packages --ignoremissing
@@ -569,8 +569,8 @@ EOF
 		sed -i "/^@base.*/c\@\^minimal-environment" /tmp/boot/ks.cfg;
 	fi
 else
-
-
+	
+	
 	cat >/tmp/boot/preseed.cfg<<EOF
 #Low memory mode
 #d-i lowmem/low boolean true
@@ -663,20 +663,20 @@ sed -ri 's/^#?PasswordAuthentication.*/PasswordAuthentication yes/g' /target/etc
 apt-install wget curl net-tools;
 EOF
 
-	if [[ "$PROTO" == 'dhcp' ]]; then
+	if [[ "$PROTO" == 'dhcp' ]]; then 
 		sed -i '/netcfg\/disable_autoconfig/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/dhcp_failed/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/dhcp_options/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/get_.*/d' /tmp/boot/preseed.cfg
 		sed -i '/netcfg\/confirm_static/d' /tmp/boot/preseed.cfg
 	fi
-
+	
 	[[ "$linux_relese" == 'debian' ]] && {
 		sed -i '/user-setup\/allow-password-weak/d' /tmp/boot/preseed.cfg
 		sed -i '/user-setup\/encrypt-home/d' /tmp/boot/preseed.cfg
 		sed -i '/pkgsel\/update-policy/d' /tmp/boot/preseed.cfg
 		sed -i 's/umount\ \/media.*true\;\ //g' /tmp/boot/preseed.cfg
-
+		
 		if [[ "$DIST" == "bullseye" ]]; then
 			if [ $total_memory -lt 800000 ]; then
 				#Low memory mode
@@ -689,12 +689,12 @@ EOF
 			fi
 		fi
 	}
-
+		
 	[[ "$ddMode" == '0' ]] && {
 		sed -i '/anna-install/d' /tmp/boot/preseed.cfg
 		sed -i 's/wget.*\/sbin\/reboot\;\ //g' /tmp/boot/preseed.cfg
 	}
-
+	
 fi
 
 find . | cpio -H newc --create --verbose | gzip -9 > /tmp/initrd.img;
@@ -736,13 +736,13 @@ if [[ "$(cat $READGRUB)" != "" && "$(cat $READGRUB|grep '/vmlinuz')" != "" ]]; t
 	}
 	fi
 	[ ! -f /tmp/grub.new ] && echo -e "\033[31mError! \033[0m $GRUBFILE. " && exit 1;
-
+	
 	sed -i "/menuentry.*/c\menuentry\ \'Install $Relese $DIST\'\ --class $linux_relese\ --class\ gnu-linux\ --class\ gnu\ --class\ os\ \{" /tmp/grub.new
 	sed -i "/echo.*Loading/d" /tmp/grub.new;
 
 
 	sed -i "/menuentry.*/c\menuentry\ \'Install $Relese $DIST\'\ --class $linux_relese\ --class\ gnu-linux\ --class\ gnu\ --class\ os\ \{" /tmp/grub.new;
-
+	
 	LinuxKernel="$(grep 'linux.*/\|kernel.*/' /tmp/grub.new |awk '{print $1}' |head -n 1)";
 	[[ -z "$LinuxKernel" ]] && echo "Error! read grub config! " && exit 1;
 	LinuxIMG="$(grep 'initrd.*/' /tmp/grub.new |awk '{print $1}' |tail -n 1)";
@@ -774,7 +774,7 @@ else
 	else
 		[[ -n "$(grep 'linux.*/\|kernel.*/' $GRUBDIR/$GRUBFILE |awk '{print $2}' |tail -n 1 |grep '^/boot/')" ]] && BootDIR='/boot' || BootDIR='';
 	fi
-
+	
 	if [[ "$linux_relese" == 'ubuntu'  || "$linux_relese" == 'debian' ]]; then
 		cat >> /etc/grub.d/40_custom <<EOF
 menuentry 'Install $Relese $DIST' --class $linux_relese --class gnu-linux --class gnu --class os {
