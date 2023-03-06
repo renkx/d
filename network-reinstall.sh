@@ -138,14 +138,14 @@ PLATFORM=$(uname -i);
 
 clear
 
-echo -e "\n\033[36m# Try requesting Google search\033[0m\n"
+echo -e "\n\033[36m# Is global\033[0m\n"
 IsGlobal="0"
-delay="$(ping -c 2 -w 2 www.google.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }' | sed -n '/^[0-9]\+\(\.[0-9]\+\)\?$/p')";
+delay="$(ping -4 -c 2 -w 2 www.google.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }' | sed -n '/^[0-9]\+\(\.[0-9]\+\)\?$/p')";
 if [ "$delay" != "" ] ; then
 	IsGlobal="1"
-	echo "Succeeded"
+	echo "Yes"
 else
-	echo "Failed"
+	echo "No"
 fi
 
 function SelectMirror(){
@@ -266,7 +266,7 @@ if [[ "$Relese" == 'Debian' ]] || [[ "$Relese" == 'Ubuntu' ]]; then
 		CheckDependence iconv;
 	fi
 	CheckDependence wget,awk,grep,sed,cut,cat,cpio,gzip,find,dirname,basename,openssl;
-elif [[ "$Relese" == 'CentOS' || "$Relese" == 'Fedora' || "$Relese" == 'RockyLinux' ]]; then
+elif [[ "$Relese" == 'CentOS' || "$Relese" == 'Fedora' || "$Relese" == 'RockyLinux' || "$Relese" == 'AlmaLinux' ]]; then
 	CheckDependence wget,awk,grep,sed,cut,cat,cpio,gzip,find,dirname,basename,file,xz,openssl;
 fi
 
@@ -360,7 +360,7 @@ elif [[ -f /run/systemd/resolve/resolv.conf ]]; then
 elif [[ -f /run/systemd/resolve/stub-resolv.conf ]]; then
 	NAMESERVER=$(cat /run/systemd/resolve/stub-resolv.conf | awk '/^nameserver/{print $2}' | tr "\n" " " | awk '{gsub(/^\s+|\s+$/, "");print}')
 else
-	if [[ IsGlobal == "1" ]];then
+	if [[ "$IsGlobal" == "1" ]];then
 		NAMESERVER="1.1.1.1 8.8.8.8" #Cloudflare Google DNS
 	else
 		delay=$(ping -c 3 -w 2 mirrors.tencentyun.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }' | sed -n '/^[0-9]\+\(\.[0-9]\+\)\?$/p')
@@ -368,6 +368,11 @@ else
 			NAMESERVER="119.29.29.29" #Tencent cloud DNS
 		fi
 	fi
+fi
+
+#RockyLinux 安装不支持多DNS，因此只保留第一个
+if [[ "$Relese" == 'RockyLinux' ]] || [[ "$Relese" == 'AlmaLinux' ]] || [[ "$Relese" == 'Fedora' ]];then
+	NAMESERVER=$(echo $NAMESERVER | awk 'NR==1{print $1}')
 fi
 
 #Disable IPv6
@@ -567,6 +572,16 @@ EOF
 	fi
 	if [[ "$linux_relese" == 'rockylinux' ]]; then
 		sed -i "/^@base.*/c\@\^minimal-environment" /tmp/boot/ks.cfg;
+		if [[ "$DIST" =~ ^9.* ]]; then
+			sed -i "/^timezone.*/c\timezone Asia\/Shanghai --utc" /tmp/boot/ks.cfg;
+			sed -i "/^logging.*/c\logging" /tmp/boot/ks.cfg;
+		fi
+	fi
+	if [[ "$linux_relese" == 'almalinux' ]]; then
+		if [[ "$DIST" =~ ^9.* ]]; then
+			sed -i "/^timezone.*/c\timezone Asia\/Shanghai --utc" /tmp/boot/ks.cfg;
+			sed -i "/^logging.*/c\logging" /tmp/boot/ks.cfg;
+		fi
 	fi
 else
 	
@@ -660,7 +675,7 @@ d-i debian-installer/splash boolean false
 d-i preseed/late_command string	\
 sed -ri 's/^#?PermitRootLogin.*/PermitRootLogin yes/g' /target/etc/ssh/sshd_config; \
 sed -ri 's/^#?PasswordAuthentication.*/PasswordAuthentication yes/g' /target/etc/ssh/sshd_config; \
-apt-install wget curl net-tools;
+apt-install wget curl xz-utils file;
 EOF
 
 	if [[ "$PROTO" == 'dhcp' ]]; then 
